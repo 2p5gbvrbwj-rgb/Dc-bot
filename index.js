@@ -42,7 +42,9 @@ const embedCommand = new SlashCommandBuilder()
   .setDescription("Send a custom embed")
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addChannelOption((opt) =>
-    opt.setName("channel").setDescription("Channel").setRequired(true)
+    opt.setName("channel")
+      .setDescription("Channel")
+      .setRequired(true)
       .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
   )
   .addStringOption((opt) =>
@@ -68,19 +70,47 @@ function getStars(rating) {
 // ================= HANDLERS =================
 
 async function handleVouch(interaction, client) {
-  const comment = interaction.options.getString("comment");
+  const product = interaction.options.getString("comment");
   const rating = interaction.options.getInteger("rating");
   const payment = interaction.options.getString("payment");
 
+  const user = interaction.user;
+
   const embed = new EmbedBuilder()
     .setColor(LIGHT_BLUE)
-    .setTitle("New Vouch")
-    .setDescription(comment)
+
+    // User info (clean top section)
+    .setAuthor({
+      name: `${user.tag} (${user.id})`,
+      iconURL: user.displayAvatarURL({ dynamic: true }),
+    })
+
+    // Profile picture (top right)
+    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+
+    // Main info
     .addFields(
-      { name: "User", value: `<@${interaction.user.id}>` },
-      { name: "Rating", value: `${getStars(rating)} (${rating}/10)` },
-      { name: "Payment", value: payment }
-    );
+      {
+        name: "⭐ Rating",
+        value: `${getStars(rating)} (${rating}/10)`,
+        inline: false,
+      },
+      {
+        name: "💳 Payment",
+        value: payment,
+        inline: false,
+      }
+    )
+
+    // Product at bottom
+    .addFields({
+      name: "🛒 Product Purchased",
+      value: product,
+      inline: false,
+    })
+
+    .setFooter({ text: "New Vouch" })
+    .setTimestamp();
 
   try {
     const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
@@ -100,7 +130,10 @@ async function handleEmbed(interaction, client) {
   const text = interaction.options.getString("text");
   const title = interaction.options.getString("title");
 
-  const embed = new EmbedBuilder().setColor(LIGHT_BLUE).setDescription(text);
+  const embed = new EmbedBuilder()
+    .setColor(LIGHT_BLUE)
+    .setDescription(text);
+
   if (title) embed.setTitle(title);
 
   try {
