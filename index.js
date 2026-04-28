@@ -91,12 +91,12 @@ async function handleVouch(interaction, client) {
     // Main info
     .addFields(
       {
-        name: "⭐ Rating",
+        name: "Rating",
         value: `${getStars(rating)} (${rating}/10)`,
         inline: false,
       },
       {
-        name: "💳 Payment",
+        name: "Payment",
         value: payment,
         inline: false,
       }
@@ -104,7 +104,7 @@ async function handleVouch(interaction, client) {
 
     // Product at bottom
     .addFields({
-      name: "🛒 Product Purchased",
+      name: "Product Purchased",
       value: product,
       inline: false,
     })
