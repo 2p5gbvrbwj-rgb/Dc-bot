@@ -1,18 +1,16 @@
-import {
+const {
   Client,
   GatewayIntentBits,
   REST,
   Routes,
   SlashCommandBuilder,
   EmbedBuilder,
-  ChatInputCommandInteraction,
   ChannelType,
   PermissionFlagsBits,
-} from "discord.js";
-import { logger } from "./lib/logger";
+} = require("discord.js");
 
-const TOKEN = process.env["DISCORD_BOT_TOKEN"];
-const VOUCH_CHANNEL_ID = process.env["VOUCH_CHANNEL_ID"];
+const TOKEN = process.env.DISCORD_BOT_TOKEN;
+const VOUCH_CHANNEL_ID = process.env.VOUCH_CHANNEL_ID;
 
 if (!TOKEN) {
   throw new Error("DISCORD_BOT_TOKEN environment variable is required.");
@@ -24,320 +22,157 @@ if (!VOUCH_CHANNEL_ID) {
 const LIGHT_BLUE = 0x5dade2;
 const OWNER_ID = "1481415545256546444";
 
+// ================= COMMANDS =================
+
 const vouchCommand = new SlashCommandBuilder()
   .setName("vouch")
   .setDescription("Leave a vouch for a purchase")
   .addStringOption((opt) =>
-    opt
-      .setName("comment")
-      .setDescription("What product did you purchase?")
-      .setRequired(true)
-      .setMaxLength(500),
+    opt.setName("comment").setDescription("What product did you purchase?").setRequired(true)
   )
   .addIntegerOption((opt) =>
-    opt
-      .setName("rating")
-      .setDescription("Rating out of 10")
-      .setRequired(true)
-      .setMinValue(1)
-      .setMaxValue(10),
+    opt.setName("rating").setDescription("Rating out of 10").setRequired(true).setMinValue(1).setMaxValue(10)
   )
   .addStringOption((opt) =>
-    opt
-      .setName("payment")
-      .setDescription("Payment method used (e.g. PayPal, Crypto, CashApp)")
-      .setRequired(true)
-      .setMaxLength(100),
+    opt.setName("payment").setDescription("Payment method used").setRequired(true)
   );
 
 const embedCommand = new SlashCommandBuilder()
   .setName("embed")
-  .setDescription("Send a custom embed to any channel")
+  .setDescription("Send a custom embed")
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addChannelOption((opt) =>
-    opt
-      .setName("channel")
-      .setDescription("Channel to send the embed to")
-      .setRequired(true)
-      .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
+    opt.setName("channel").setDescription("Channel").setRequired(true)
+      .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
   )
   .addStringOption((opt) =>
-    opt
-      .setName("text")
-      .setDescription("The message to display in the embed")
-      .setRequired(true)
-      .setMaxLength(2000),
+    opt.setName("text").setDescription("Embed text").setRequired(true)
   )
   .addStringOption((opt) =>
-    opt
-      .setName("title")
-      .setDescription("Optional title for the embed")
-      .setRequired(false)
-      .setMaxLength(256),
+    opt.setName("title").setDescription("Optional title").setRequired(false)
   );
 
 const massDmCommand = new SlashCommandBuilder()
   .setName("massdm")
-  .setDescription("DM every member in the server (owner only)")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  .setDescription("DM everyone (owner only)")
   .addStringOption((opt) =>
-    opt
-      .setName("message")
-      .setDescription("Message to send to every member")
-      .setRequired(true)
-      .setMaxLength(1900),
+    opt.setName("message").setDescription("Message").setRequired(true)
   );
 
-function getStars(rating: number): string {
-  const filled = "★".repeat(rating);
-  const empty = "☆".repeat(10 - rating);
-  return filled + empty;
+// ================= FUNCTIONS =================
+
+function getStars(rating) {
+  return "★".repeat(rating) + "☆".repeat(10 - rating);
 }
 
-async function handleVouch(
-  interaction: ChatInputCommandInteraction,
-  client: Client,
-) {
-  const comment = interaction.options.getString("comment", true);
-  const rating = interaction.options.getInteger("rating", true);
-  const payment = interaction.options.getString("payment", true);
-  const user = interaction.user;
+// ================= HANDLERS =================
 
-  if (!interaction.guild) {
-    await interaction.reply({
-      content: "This command can only be used in a server.",
-      ephemeral: true,
-    });
-    return;
-  }
-
-  const nowUnix = Math.floor(Date.now() / 1000);
+async function handleVouch(interaction, client) {
+  const comment = interaction.options.getString("comment");
+  const rating = interaction.options.getInteger("rating");
+  const payment = interaction.options.getString("payment");
 
   const embed = new EmbedBuilder()
     .setColor(LIGHT_BLUE)
-    .setTitle("New Vouch Received")
-    .setThumbnail(user.displayAvatarURL({ size: 256 }))
+    .setTitle("New Vouch")
+    .setDescription(comment)
     .addFields(
-      {
-        name: "From",
-        value: `<@${user.id}>\n(${user.id})`,
-        inline: false,
-      },
-      {
-        name: "Rating",
-        value: `${getStars(rating)} (${rating}/10)`,
-        inline: false,
-      },
-      {
-        name: "Payment Method",
-        value: payment,
-        inline: false,
-      },
-      {
-        name: "Vouched at",
-        value: `<t:${nowUnix}:F>`,
-        inline: false,
-      },
-      {
-        name: "Product you purchased",
-        value: comment,
-        inline: false,
-      },
-    )
-    .setFooter({ text: "Thanks for purchasing our product!" });
+      { name: "User", value: `<@${interaction.user.id}>` },
+      { name: "Rating", value: `${getStars(rating)} (${rating}/10)` },
+      { name: "Payment", value: payment }
+    );
 
   try {
-    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID!);
-    if (!channel || !channel.isSendable()) {
-      logger.error(
-        { channelId: VOUCH_CHANNEL_ID, channelType: channel?.type },
-        "Vouch channel not found or not sendable",
-      );
-      await interaction.reply({
-        content:
-          "Could not find the vouch channel. Make sure the bot has access to it.",
-        ephemeral: true,
-      });
-      return;
-    }
+    const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+    if (!channel || !channel.isSendable()) return;
 
     await channel.send({ embeds: [embed] });
 
-    await interaction.reply({
-      content: `Your vouch has been submitted to <#${VOUCH_CHANNEL_ID}>!`,
-      ephemeral: true,
-    });
+    await interaction.reply({ content: "Vouch sent!", ephemeral: true });
   } catch (err) {
-    logger.error({ err }, "Failed to send vouch embed");
-    await interaction.reply({
-      content:
-        "Something went wrong sending your vouch. Make sure the bot has permission to send messages in the vouch channel.",
-      ephemeral: true,
-    });
+    console.error(err);
+    await interaction.reply({ content: "Error sending vouch", ephemeral: true });
   }
 }
 
-async function handleEmbed(
-  interaction: ChatInputCommandInteraction,
-  client: Client,
-) {
-  const targetChannel = interaction.options.getChannel("channel", true);
-  const text = interaction.options.getString("text", true);
+async function handleEmbed(interaction, client) {
+  const targetChannel = interaction.options.getChannel("channel");
+  const text = interaction.options.getString("text");
   const title = interaction.options.getString("title");
 
-  if (!interaction.guild) {
-    await interaction.reply({
-      content: "This command can only be used in a server.",
-      ephemeral: true,
-    });
-    return;
-  }
-
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-    await interaction.reply({
-      content: "You need Administrator permission to use this command.",
-      ephemeral: true,
-    });
-    return;
-  }
-
   const embed = new EmbedBuilder().setColor(LIGHT_BLUE).setDescription(text);
-
-  if (title) {
-    embed.setTitle(title);
-  }
+  if (title) embed.setTitle(title);
 
   try {
     const channel = await client.channels.fetch(targetChannel.id);
-    if (!channel || !channel.isSendable()) {
-      await interaction.reply({
-        content: "That channel isn't available or the bot can't send messages there.",
-        ephemeral: true,
-      });
-      return;
-    }
+    if (!channel || !channel.isSendable()) return;
 
     await channel.send({ embeds: [embed] });
 
-    await interaction.reply({
-      content: `Embed sent to <#${targetChannel.id}>!`,
-      ephemeral: true,
-    });
+    await interaction.reply({ content: "Embed sent!", ephemeral: true });
   } catch (err) {
-    logger.error({ err }, "Failed to send custom embed");
-    await interaction.reply({
-      content:
-        "Something went wrong. Make sure the bot has permission to send messages in that channel.",
-      ephemeral: true,
-    });
+    console.error(err);
+    await interaction.reply({ content: "Error sending embed", ephemeral: true });
   }
 }
 
-async function handleMassDm(
-  interaction: ChatInputCommandInteraction,
-) {
-  const guild = interaction.guild;
-  if (!guild) {
-    await interaction.reply({
-      content: "This command can only be used in a server.",
-      ephemeral: true,
-    });
-    return;
-  }
-
+async function handleMassDm(interaction) {
   if (interaction.user.id !== OWNER_ID) {
-    await interaction.reply({
-      content: "Only the server owner can use this command.",
-      ephemeral: true,
-    });
-    return;
+    return interaction.reply({ content: "Not allowed", ephemeral: true });
   }
 
-  const message = interaction.options.getString("message", true);
+  const message = interaction.options.getString("message");
+  const members = await interaction.guild.members.fetch();
 
-  await interaction.deferReply({ ephemeral: true });
+  let sent = 0;
 
-  try {
-    const members = await guild.members.fetch();
-    const humans = members.filter((m) => !m.user.bot);
+  for (const member of members.values()) {
+    if (member.user.bot) continue;
 
-    let sent = 0;
-    let failed = 0;
-
-    const memberList = [...humans.values()];
-    const BATCH_SIZE = 20;
-
-    for (let i = 0; i < memberList.length; i += BATCH_SIZE) {
-      const batch = memberList.slice(i, i + BATCH_SIZE);
-
-      const results = await Promise.allSettled(
-        batch.map((member) => {
-          const dmEmbed = new EmbedBuilder()
-            .setColor(LIGHT_BLUE)
-            .setDescription(message);
-          return member.send({ embeds: [dmEmbed] });
-        }),
-      );
-
-      for (const result of results) {
-        if (result.status === "fulfilled") sent++;
-        else failed++;
-      }
-
-      if (i + BATCH_SIZE < memberList.length) {
-        await new Promise((res) => setTimeout(res, 500));
-      }
-    }
-
-    await interaction.editReply({
-      content: `Mass DM complete.\n✅ Sent: **${sent}**\n❌ Failed (DMs closed): **${failed}**`,
-    });
-  } catch (err) {
-    logger.error({ err }, "Mass DM failed");
-    await interaction.editReply({
-      content:
-        "Failed to fetch members. Make sure the **Server Members Intent** is enabled in the Discord Developer Portal.",
-    });
+    try {
+      await member.send(message);
+      sent++;
+    } catch {}
   }
+
+  await interaction.reply({ content: `Sent to ${sent} users`, ephemeral: true });
 }
 
-async function registerCommands(clientId: string) {
-  const rest = new REST().setToken(TOKEN!);
-  try {
-    logger.info("Registering slash commands...");
-    await rest.put(Routes.applicationCommands(clientId), {
-      body: [vouchCommand.toJSON(), embedCommand.toJSON(), massDmCommand.toJSON()],
-    });
-    logger.info("Slash commands registered successfully.");
-  } catch (err) {
-    logger.error({ err }, "Failed to register slash commands");
-  }
-}
+// ================= BOT START =================
 
-export async function startBot() {
+async function startBot() {
   const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
   });
 
-  client.once("ready", async (c) => {
-    logger.info({ tag: c.user.tag }, "Discord bot logged in");
-    await registerCommands(c.user.id);
+  client.once("ready", async () => {
+    console.log(`Logged in as ${client.user.tag}`);
+
+    const rest = new REST().setToken(TOKEN);
+    await rest.put(Routes.applicationCommands(client.user.id), {
+      body: [
+        vouchCommand.toJSON(),
+        embedCommand.toJSON(),
+        massDmCommand.toJSON(),
+      ],
+    });
+
+    console.log("Commands registered");
   });
 
   client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
+
     if (interaction.commandName === "vouch") {
-      await handleVouch(interaction, client);
+      handleVouch(interaction, client);
     } else if (interaction.commandName === "embed") {
-      await handleEmbed(interaction, client);
+      handleEmbed(interaction, client);
     } else if (interaction.commandName === "massdm") {
-      await handleMassDm(interaction);
+      handleMassDm(interaction);
     }
   });
 
-  client.on("error", (err) => {
-    logger.error({ err }, "Discord client error");
-  });
-
-  await client.login(TOKEN);
+  client.login(TOKEN);
 }
+
+startBot();
