@@ -21,11 +21,14 @@ const OWNER_ID = "1481415545256546444";
 // ================= PANEL SETTINGS =================
 
 const panelSettings = {
-  text: "Click the button below to open a support ticket.\nOur team will assist you as soon as possible.",
+  text:
+    "Click the button below to open a support ticket.\nOur team will assist you as soon as possible.",
   categoryId: null,
   buttonText: "Open Ticket",
   buttonEmoji: "📩",
 };
+
+// ================= HELPERS =================
 
 function log(...args) {
   console.log(...args);
@@ -33,6 +36,10 @@ function log(...args) {
 
 function error(...args) {
   console.error(...args);
+}
+
+function getStars(rating) {
+  return "★".repeat(rating) + "☆".repeat(10 - rating);
 }
 
 // ================= OWNER CHECK =================
@@ -74,13 +81,14 @@ function buildTicketsEmbed(guild) {
   return new EmbedBuilder()
     .setColor(LIGHT_BLUE)
     .setTitle("🎫 Ticket Statistics")
-    .addFields(
-      {
-        name: "🟢 Open Tickets",
-        value: `\`${open}\``,
-        inline: true,
-      },
-    )
+    .addFields({
+      name: "🟢 Open Tickets",
+      value: `\`${open}\``,
+      inline: true,
+    })
+    .setFooter({
+      text: "Last updated",
+    })
     .setTimestamp();
 }
 
@@ -92,10 +100,6 @@ function buildTicketsRow() {
       .setEmoji("🔄")
       .setStyle(ButtonStyle.Primary),
   );
-}
-
-function getStars(rating) {
-  return "★".repeat(rating) + "☆".repeat(10 - rating);
 }
 
 // ================= COMMANDS =================
@@ -246,24 +250,38 @@ client.on("interactionCreate", async (interaction) => {
         const embed = new EmbedBuilder()
           .setColor(LIGHT_BLUE)
           .setAuthor({
-            name: interaction.user.tag,
-            iconURL: interaction.user.displayAvatarURL(),
+            name: `${interaction.user.username}\n(${interaction.user.id})`,
+            iconURL: interaction.user.displayAvatarURL({
+              extension: "png",
+              size: 1024,
+            }),
           })
+          .setThumbnail(
+            interaction.user.displayAvatarURL({
+              extension: "png",
+              size: 1024,
+            }),
+          )
           .addFields(
             {
               name: "Rating",
               value: `${getStars(rating)} (${rating}/10)`,
+              inline: false,
             },
             {
               name: "Payment",
               value: payment,
+              inline: false,
             },
             {
-              name: "Product",
+              name: "Product Purchased",
               value: product,
+              inline: false,
             },
           )
-          .setTimestamp();
+          .setFooter({
+            text: `New Vouch | ${new Date().toLocaleString()}`,
+          });
 
         const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
 
@@ -298,7 +316,9 @@ client.on("interactionCreate", async (interaction) => {
           .setColor(LIGHT_BLUE)
           .setDescription(text);
 
-        if (title) embed.setTitle(title);
+        if (title) {
+          embed.setTitle(title);
+        }
 
         await channel.send({
           embeds: [embed],
