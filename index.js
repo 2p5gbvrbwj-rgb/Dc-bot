@@ -24,6 +24,8 @@ const panelSettings = {
   categoryId: null,
 };
 
+let closedTickets = 0;
+
 function log(...args) {
   console.log(...args);
 }
@@ -65,17 +67,13 @@ function getOpenTicketCount(guild) {
   ).size;
 }
 
-function getClosedTicketCount(guild) {
-  return guild.channels.cache.filter(
-    (ch) =>
-      ch.type === ChannelType.GuildText &&
-      ch.name.startsWith("closed-"),
-  ).size;
+function getClosedTicketCount() {
+  return closedTickets;
 }
 
 function buildTicketsEmbed(guild) {
   const open = getOpenTicketCount(guild);
-  const closed = getClosedTicketCount(guild);
+  const closed = getClosedTicketCount();
 
   return new EmbedBuilder()
     .setColor(LIGHT_BLUE)
@@ -189,6 +187,7 @@ client.once("ready", async () => {
 
 client.on("interactionCreate", async (interaction) => {
   try {
+
     // ================= SLASH COMMANDS =================
 
     if (interaction.isChatInputCommand()) {
@@ -196,6 +195,7 @@ client.on("interactionCreate", async (interaction) => {
       // ===== VOUCH =====
 
       if (interaction.commandName === "vouch") {
+
         const product = interaction.options.getString("comment");
         const rating = interaction.options.getInteger("rating");
         const payment = interaction.options.getString("payment");
@@ -255,7 +255,9 @@ client.on("interactionCreate", async (interaction) => {
           .setColor(LIGHT_BLUE)
           .setDescription(text);
 
-        if (title) embed.setTitle(title);
+        if (title) {
+          embed.setTitle(title);
+        }
 
         await channel.send({
           embeds: [embed],
@@ -403,19 +405,19 @@ client.on("interactionCreate", async (interaction) => {
         });
 
         try {
-          await channel.setName(
-            channel.name.replace("ticket-", "closed-"),
-          );
 
-          await channel.permissionOverwrites.set([
-            {
-              id: interaction.guild.roles.everyone.id,
-              deny: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-              ],
-            },
-          ]);
+          // increase closed ticket counter
+          closedTickets++;
+
+          // delete channel after 2 seconds
+          setTimeout(async () => {
+            try {
+              await channel.delete();
+            } catch (err) {
+              error(err);
+            }
+          }, 2000);
+
         } catch (err) {
           error(err);
         }
