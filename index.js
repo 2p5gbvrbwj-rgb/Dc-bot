@@ -207,6 +207,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent,
   ],
 });
 
@@ -234,6 +235,19 @@ client.once("ready", async () => {
     log("Commands registered");
   } catch (err) {
     error(err);
+  }
+});
+
+// ================= PREFIX COMMANDS =================
+
+client.on("messageCreate", async (message) => {
+
+  if (message.author.bot) return;
+
+  if (message.content.toLowerCase() === "-duck") {
+
+    await message.reply("🦆 Quack quack!");
+
   }
 });
 
@@ -495,12 +509,12 @@ client.on("interactionCreate", async (interaction) => {
 
         const embed = new EmbedBuilder()
           .setColor(LIGHT_BLUE)
-          .setTitle("welcome to your ticket")
+          .setTitle("🎫 Welcome to Support")
           .setDescription(
-            `Hello <@${user.id}> 👋\n\nThank you for creating a ticket at our shop!\nA staff member will be with you shortly.\n\nPlease say what you wsnt to purchase or what you need help with!.`,
+            `Hello <@${user.id}> 👋\n\nThank you for creating a ticket at our shop!\nA staff member will be with you shortly.\n\nPlease explain your issue or what you need help with and our team will assist you as soon as possible.`,
           )
           .setFooter({
-            text: "Staff Team",
+            text: "Support Team",
           })
           .setTimestamp();
 
