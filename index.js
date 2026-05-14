@@ -21,6 +21,7 @@ const OWNER_ID = "1481415545256546444";
 // ================= PANEL SETTINGS =================
 
 const panelSettings = {
+  title: "🎫 Support Tickets",
   text:
     "Click the button below to open a support ticket.\nOur team will assist you as soon as possible.",
   categoryId: null,
@@ -170,7 +171,13 @@ const ticketCategoryCommand = new SlashCommandBuilder()
 
 const panelTextCommand = new SlashCommandBuilder()
   .setName("paneltext")
-  .setDescription("Change panel text")
+  .setDescription("Change panel title and text")
+  .addStringOption((opt) =>
+    opt
+      .setName("title")
+      .setDescription("New panel title")
+      .setRequired(true),
+  )
   .addStringOption((opt) =>
     opt
       .setName("text")
@@ -266,17 +273,14 @@ client.on("interactionCreate", async (interaction) => {
             {
               name: "Rating",
               value: `${getStars(rating)} (${rating}/10)`,
-              inline: false,
             },
             {
               name: "Payment",
               value: payment,
-              inline: false,
             },
             {
               name: "Product Purchased",
               value: product,
-              inline: false,
             },
           )
           .setFooter({
@@ -343,7 +347,7 @@ client.on("interactionCreate", async (interaction) => {
 
         const embed = new EmbedBuilder()
           .setColor(LIGHT_BLUE)
-          .setTitle("🎫 Support Tickets")
+          .setTitle(panelSettings.title)
           .setDescription(panelSettings.text);
 
         const row = new ActionRowBuilder().addComponents(
@@ -410,12 +414,14 @@ client.on("interactionCreate", async (interaction) => {
           });
         }
 
+        const title = interaction.options.getString("title");
         const text = interaction.options.getString("text");
 
+        panelSettings.title = title;
         panelSettings.text = text;
 
         await interaction.reply({
-          content: "✅ Panel text updated!",
+          content: "✅ Panel title and text updated!",
           ephemeral: true,
         });
       }
@@ -489,8 +495,14 @@ client.on("interactionCreate", async (interaction) => {
 
         const embed = new EmbedBuilder()
           .setColor(LIGHT_BLUE)
-          .setTitle("🎫 Ticket Created")
-          .setDescription(`Welcome <@${user.id}>`);
+          .setTitle("🎫 Welcome to Support")
+          .setDescription(
+            `Hello <@${user.id}> 👋\n\nThank you for creating a ticket at our shop!\nA staff member will be with you shortly.\n\nPlease explain your issue or what you need help with and our team will assist you as soon as possible.`,
+          )
+          .setFooter({
+            text: "Support Team",
+          })
+          .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
