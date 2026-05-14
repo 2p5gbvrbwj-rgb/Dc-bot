@@ -68,7 +68,7 @@ function getOpenTicketCount(guild) {
 }
 
 function getClosedTicketCount() {
-  return closedTickets;
+  return Number(closedTickets) || 0;
 }
 
 function buildTicketsEmbed(guild) {
@@ -406,17 +406,13 @@ client.on("interactionCreate", async (interaction) => {
 
         try {
 
-          // increase closed ticket counter
+          // add to closed count
           closedTickets++;
 
-          // delete channel after 2 seconds
-          setTimeout(async () => {
-            try {
-              await channel.delete();
-            } catch (err) {
-              error(err);
-            }
-          }, 2000);
+          console.log(`Closed tickets: ${closedTickets}`);
+
+          // delete channel instantly
+          await channel.delete();
 
         } catch (err) {
           error(err);
