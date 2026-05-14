@@ -18,13 +18,14 @@ const VOUCH_CHANNEL_ID = process.env.VOUCH_CHANNEL_ID;
 const LIGHT_BLUE = 0x5dade2;
 const OWNER_ID = "1481415545256546444";
 
+// ================= PANEL SETTINGS =================
+
 const panelSettings = {
   text: "Click the button below to open a support ticket.\nOur team will assist you as soon as possible.",
-  imageUrl: null,
   categoryId: null,
+  buttonText: "Open Ticket",
+  buttonEmoji: "📩",
 };
-
-let closedTickets = 0;
 
 function log(...args) {
   console.log(...args);
@@ -67,23 +68,19 @@ function getOpenTicketCount(guild) {
   ).size;
 }
 
-function getClosedTicketCount() {
-  return Number(closedTickets) || 0;
-}
-
 function buildTicketsEmbed(guild) {
   const open = getOpenTicketCount(guild);
-  const closed = getClosedTicketCount();
 
   return new EmbedBuilder()
     .setColor(LIGHT_BLUE)
     .setTitle("🎫 Ticket Statistics")
     .addFields(
-      { name: "🟢 Open Tickets", value: `\`${open}\``, inline: true },
-      { name: "🔴 Closed Tickets", value: `\`${closed}\``, inline: true },
-      { name: "📊 Total", value: `\`${open + closed}\``, inline: true },
+      {
+        name: "🟢 Open Tickets",
+        value: `\`${open}\``,
+        inline: true,
+      },
     )
-    .setFooter({ text: "Last updated" })
     .setTimestamp();
 }
 
@@ -91,7 +88,8 @@ function buildTicketsRow() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("refresh_tickets")
-      .setLabel("🔄 Refresh")
+      .setLabel("Refresh")
+      .setEmoji("🔄")
       .setStyle(ButtonStyle.Primary),
   );
 }
@@ -104,11 +102,11 @@ function getStars(rating) {
 
 const vouchCommand = new SlashCommandBuilder()
   .setName("vouch")
-  .setDescription("Leave a vouch for a purchase")
+  .setDescription("Leave a vouch")
   .addStringOption((opt) =>
     opt
       .setName("comment")
-      .setDescription("What product did you purchase?")
+      .setDescription("Product purchased")
       .setRequired(true),
   )
   .addIntegerOption((opt) =>
@@ -122,13 +120,13 @@ const vouchCommand = new SlashCommandBuilder()
   .addStringOption((opt) =>
     opt
       .setName("payment")
-      .setDescription("Payment method used")
+      .setDescription("Payment method")
       .setRequired(true),
   );
 
 const embedCommand = new SlashCommandBuilder()
   .setName("embed")
-  .setDescription("Send a custom embed")
+  .setDescription("Send an embed")
   .addChannelOption((opt) =>
     opt
       .setName("channel")
@@ -136,10 +134,15 @@ const embedCommand = new SlashCommandBuilder()
       .setRequired(true),
   )
   .addStringOption((opt) =>
-    opt.setName("text").setDescription("Embed text").setRequired(true),
+    opt
+      .setName("text")
+      .setDescription("Embed text")
+      .setRequired(true),
   )
   .addStringOption((opt) =>
-    opt.setName("title").setDescription("Optional title"),
+    opt
+      .setName("title")
+      .setDescription("Optional title"),
   );
 
 const panelCommand = new SlashCommandBuilder()
@@ -148,7 +151,44 @@ const panelCommand = new SlashCommandBuilder()
 
 const ticketsCommand = new SlashCommandBuilder()
   .setName("tickets")
-  .setDescription("View ticket stats");
+  .setDescription("View open tickets");
+
+const ticketCategoryCommand = new SlashCommandBuilder()
+  .setName("ticketcategory")
+  .setDescription("Set ticket category")
+  .addChannelOption((opt) =>
+    opt
+      .setName("category")
+      .setDescription("Category")
+      .addChannelTypes(ChannelType.GuildCategory)
+      .setRequired(true),
+  );
+
+const panelTextCommand = new SlashCommandBuilder()
+  .setName("paneltext")
+  .setDescription("Change panel text")
+  .addStringOption((opt) =>
+    opt
+      .setName("text")
+      .setDescription("New panel text")
+      .setRequired(true),
+  );
+
+const panelButtonCommand = new SlashCommandBuilder()
+  .setName("panelbutton")
+  .setDescription("Edit panel button")
+  .addStringOption((opt) =>
+    opt
+      .setName("text")
+      .setDescription("Button text")
+      .setRequired(true),
+  )
+  .addStringOption((opt) =>
+    opt
+      .setName("emoji")
+      .setDescription("Button emoji")
+      .setRequired(true),
+  );
 
 // ================= BOT =================
 
@@ -173,11 +213,14 @@ client.once("ready", async () => {
           embedCommand.toJSON(),
           panelCommand.toJSON(),
           ticketsCommand.toJSON(),
+          ticketCategoryCommand.toJSON(),
+          panelTextCommand.toJSON(),
+          panelButtonCommand.toJSON(),
         ],
       },
     );
 
-    log("Slash commands registered");
+    log("Commands registered");
   } catch (err) {
     error(err);
   }
@@ -216,7 +259,7 @@ client.on("interactionCreate", async (interaction) => {
               value: payment,
             },
             {
-              name: "Product Purchased",
+              name: "Product",
               value: product,
             },
           )
@@ -255,9 +298,7 @@ client.on("interactionCreate", async (interaction) => {
           .setColor(LIGHT_BLUE)
           .setDescription(text);
 
-        if (title) {
-          embed.setTitle(title);
-        }
+        if (title) embed.setTitle(title);
 
         await channel.send({
           embeds: [embed],
@@ -285,14 +326,11 @@ client.on("interactionCreate", async (interaction) => {
           .setTitle("🎫 Support Tickets")
           .setDescription(panelSettings.text);
 
-        if (panelSettings.imageUrl) {
-          embed.setImage(panelSettings.imageUrl);
-        }
-
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId("open_ticket")
-            .setLabel("📩 Open Ticket")
+            .setLabel(panelSettings.buttonText)
+            .setEmoji(panelSettings.buttonEmoji)
             .setStyle(ButtonStyle.Primary),
         );
 
@@ -311,6 +349,19 @@ client.on("interactionCreate", async (interaction) => {
 
       if (interaction.commandName === "tickets") {
 
+        const embed = buildTicketsEmbed(interaction.guild);
+        const row = buildTicketsRow();
+
+        await interaction.reply({
+          embeds: [embed],
+          components: [row],
+        });
+      }
+
+      // ===== TICKET CATEGORY =====
+
+      if (interaction.commandName === "ticketcategory") {
+
         if (!(await isOwner(interaction))) {
           return interaction.reply({
             content: "❌ No permission.",
@@ -318,12 +369,57 @@ client.on("interactionCreate", async (interaction) => {
           });
         }
 
-        const embed = buildTicketsEmbed(interaction.guild);
-        const row = buildTicketsRow();
+        const category = interaction.options.getChannel("category");
+
+        panelSettings.categoryId = category.id;
 
         await interaction.reply({
-          embeds: [embed],
-          components: [row],
+          content: `✅ Ticket category set to ${category.name}`,
+          ephemeral: true,
+        });
+      }
+
+      // ===== PANEL TEXT =====
+
+      if (interaction.commandName === "paneltext") {
+
+        if (!(await isOwner(interaction))) {
+          return interaction.reply({
+            content: "❌ No permission.",
+            ephemeral: true,
+          });
+        }
+
+        const text = interaction.options.getString("text");
+
+        panelSettings.text = text;
+
+        await interaction.reply({
+          content: "✅ Panel text updated!",
+          ephemeral: true,
+        });
+      }
+
+      // ===== PANEL BUTTON =====
+
+      if (interaction.commandName === "panelbutton") {
+
+        if (!(await isOwner(interaction))) {
+          return interaction.reply({
+            content: "❌ No permission.",
+            ephemeral: true,
+          });
+        }
+
+        const text = interaction.options.getString("text");
+        const emoji = interaction.options.getString("emoji");
+
+        panelSettings.buttonText = text;
+        panelSettings.buttonEmoji = emoji;
+
+        await interaction.reply({
+          content: "✅ Panel button updated!",
+          ephemeral: true,
         });
       }
     }
@@ -379,7 +475,8 @@ client.on("interactionCreate", async (interaction) => {
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId("close_ticket")
-            .setLabel("🔒 Close Ticket")
+            .setLabel("Close Ticket")
+            .setEmoji("🔒")
             .setStyle(ButtonStyle.Danger),
         );
 
@@ -405,21 +502,13 @@ client.on("interactionCreate", async (interaction) => {
         });
 
         try {
-
-          // add to closed count
-          closedTickets++;
-
-          console.log(`Closed tickets: ${closedTickets}`);
-
-          // delete channel instantly
           await channel.delete();
-
         } catch (err) {
           error(err);
         }
       }
 
-      // ===== REFRESH TICKETS =====
+      // ===== REFRESH =====
 
       if (interaction.customId === "refresh_tickets") {
 
