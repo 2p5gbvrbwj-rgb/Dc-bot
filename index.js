@@ -495,12 +495,12 @@ client.on("interactionCreate", async (interaction) => {
 
         const embed = new EmbedBuilder()
           .setColor(LIGHT_BLUE)
-          .setTitle("🎫 Welcome to Support")
+          .setTitle("welcome to your ticket")
           .setDescription(
-            `Hello <@${user.id}> 👋\n\nThank you for creating a ticket at our shop!\nA staff member will be with you shortly.\n\nPlease explain your issue or what you need help with and our team will assist you as soon as possible.`,
+            `Hello <@${user.id}> 👋\n\nThank you for creating a ticket at our shop!\nA staff member will be with you shortly.\n\nPlease say what you wsnt to purchase or what you need help with!.`,
           )
           .setFooter({
-            text: "Support Team",
+            text: "Staff Team",
           })
           .setTimestamp();
 
