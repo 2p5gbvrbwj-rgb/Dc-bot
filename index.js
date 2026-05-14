@@ -207,6 +207,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
   ],
 });
@@ -255,8 +256,6 @@ client.on("messageCreate", async (message) => {
 
 client.on("interactionCreate", async (interaction) => {
   try {
-
-    // ================= SLASH COMMANDS =================
 
     if (interaction.isChatInputCommand()) {
 
